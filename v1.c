@@ -14,13 +14,13 @@ int main(){
  printf("--------------------------------------\n");
  //One Specimen Record:
 
- printf(" Vehicle Number:         \n");
- printf(" Vehicle Type  :       \n");
- printf(" Driver Name   :      \n");
- printf(" Driver Number :\n");
- printf(" Slot Number   :      \n");
- printf(" Entry Time    :     \n");
- printf(" Fare Rate     :    \n");   //50BDT/hour
+ printf(" Vehicle Number: 7       \n");
+ printf(" Vehicle Type  : 1      \n");
+ printf(" Driver Name   : Abdul     \n");
+ printf(" Driver Number : 019********\n");
+ printf(" Slot Number   : 11     \n");
+ printf(" Entry Time    : 200    \n");
+ printf(" Fare Rate     : 330   \n");   //50BDT/hour
  printf("________________________________________          \n");
 return 0;
 
