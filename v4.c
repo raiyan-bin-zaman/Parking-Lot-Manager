@@ -1,409 +1,265 @@
-/* Parking Lot Manager - Version 4 */
 #include <stdio.h>
 
-#define TOTAL_SLOTS     10
-#define MAX_PLATE       9999
-#define MAX_MINUTE_IN   1439
-#define MIDNIGHT        1440    /* minutes are counted from midnight of the arrival day */
-#define MAX_MINUTE_OUT  2879
-
-#define CAR_RATE        30.0
-#define BIKE_RATE       15.0
-#define BICYCLE_RATE     5.0
-
-#define CAR_CAP        200.0
-#define BIKE_CAP       100.0
-#define BICYCLE_CAP     30.0
-
-int    g_slot;
-int    g_number;
-int    g_type;
-int    g_minutein;
-int    g_minuteout;
-double g_charge;
-
-int    g_occupied = 0;
-int    g_parked_count = 0;
-int    g_released_count = 0;
-double g_earnings = 0.0;
-int    g_eof = 0;
-
-void   Banner(void);
-void   Menu(void);
-int    read_number(void);
-int    read_in_range(int low, int high);
-double rate_for_type(int type);
-double cap_for_type(int type);
-int    is_overnight(int minuteout);
-int    calc_hours(int minutes);
-double calc_charge(int hours, double rate_per_hour);
-double apply_cap(double charge, double cap, int overnight);
-void   print_type_name(int type);
-void   show_receipt(int minutes, int hours, double rate, double charge, int capped);
-void   park_vehicle(void);
-void   release_vehicle(void);
-void   show_free_slots(void);
-void   search_by_plate(void);
-void   show_earnings(void);
-void   save_and_load(void);
-void   wait_for_enter(void);
+/* Function Prototypes */
+void Banner(void);
+void Menu(double rate);
+int read_number(void);
+int calc_hours(int minutes);
+double get_rate(int type);
+double calc_charge(int hours, double rate);
+void show_receipt(int slot, int number, int type,
+                  int minutein, int minuteout,
+                  int minutes, int hours, double charge);
 
 int main(void)
 {
     int choice;
+    int slot = 0, number = 0, type = 0;
+    int minutein = 0, minuteout;
+    int minutes, hours;
+    int occupied = 0;
+    int count = 0;
+    int overnight;
+
+    int search;
+    double rate;
+    double charge;
+    double earnings = 0.0;
 
     Banner();
-    do {
-        Menu();
+
+    do
+    {
+        Menu(30.0);
+
         printf("Choose an option: ");
         choice = read_number();
-        printf("\n");
 
-        switch (choice) {
-            case 1:  park_vehicle();    break;
-            case 2:  release_vehicle(); break;
-            case 3:  show_free_slots(); break;
-            case 4:  search_by_plate(); break;
-            case 5:  show_earnings();   break;
-            case 6:  save_and_load();   break;
-            case 0:
-                show_earnings();
-                if (g_occupied) {
-                    printf("\nNote: vehicle %d is still in slot %d and was not charged.\n",
-                           g_number, g_slot);
+        switch(choice)
+        {
+            case 1:
+                if(occupied == 1)
+                {
+                    printf("Parking slot is occupied!\n");
+                    break;
                 }
-                printf("\nGoodbye.\n");
+
+                printf("Slot number (1-10): ");
+                slot = read_number();
+
+                if(slot < 1 || slot > 10)
+                {
+                    printf("Invalid slot number!\n");
+                    break;
+                }
+
+                printf("Vehicle number: ");
+                number = read_number();
+
+                if(number <= 0)
+                {
+                    printf("Invalid vehicle number!\n");
+                    break;
+                }
+
+                printf("\n1. Car\n");
+                printf("2. Bike\n");
+                printf("3. Bicycle\n");
+
+                printf("Vehicle type: ");
+                type = read_number();
+
+                if(type < 1 || type > 3)
+                {
+                    printf("Invalid vehicle type!\n");
+                    break;
+                }
+
+                printf("Minute in (0-1439): ");
+                minutein = read_number();
+
+                if(minutein < 0 || minutein > 1439)
+                {
+                    printf("Invalid entry time!\n");
+                    break;
+                }
+
+                rate = get_rate(type);
+
+                occupied = 1;
+                count++;
+
+                printf("\nVehicle parked successfully!\n");
+                printf("Rate: %.2f taka per hour\n", rate);
+
                 break;
+
+            case 2:
+                if(occupied == 0)
+                {
+                    printf("No vehicle is parked!\n");
+                    break;
+                }
+
+                printf("Minute out (0-1439): ");
+                minuteout = read_number();
+
+                if(minuteout < 0 || minuteout > 1439)
+                {
+                    printf("Invalid exit time!\n");
+                    break;
+                }
+
+                if(minuteout == minutein)
+                {
+                    printf("Invalid parking duration!\n");
+                    break;
+                }
+
+                if(minuteout < minutein)
+                {
+                    minutes = (1440 - minutein) + minuteout;
+                    overnight = 1;
+                }
+                else
+                {
+                    minutes = minuteout - minutein;
+                    overnight = 0;
+                }
+
+                hours = calc_hours(minutes);
+                rate = get_rate(type);
+
+                charge = calc_charge(hours, rate);
+
+                if(overnight == 1 && charge > 300.0)
+                {
+                    charge = 300.0;
+                }
+
+                earnings = earnings + charge;
+
+                show_receipt(slot, number, type,
+                             minutein, minuteout,
+                             minutes, hours, charge);
+
+                occupied = 0;
+
+                break;
+
+            case 3:
+                if(occupied == 1)
+                    printf("Free slots: 9\n");
+                else
+                    printf("Free slots: 10\n");
+
+                break;
+
+            case 4:
+                printf("Enter vehicle number: ");
+                search = read_number();
+
+                if(occupied == 1 && search == number)
+                {
+                    printf("Vehicle found!\n");
+                    printf("Slot number: %d\n", slot);
+                    printf("Vehicle number: %d\n", number);
+                }
+                else
+                {
+                    printf("Vehicle not found!\n");
+                }
+
+                break;
+
+            case 5:
+                printf("Vehicles parked: %d\n", count);
+                printf("Day's earnings: %.2f taka\n", earnings);
+
+                break;
+
+            case 0:
+                printf("Thank you! Goodbye.\n");
+                break;
+
             default:
-                printf("That is not on the menu - choose a number from 0 to 6.\n");
-                break;
+                printf("Invalid choice! Try again.\n");
         }
-        printf("\n");
-    } while (choice != 0);
+
+    } while(choice != 0);
 
     return 0;
 }
 
-void wait_for_enter(void)
-{
-    int ch;
-
-    printf("\nPress Enter to continue...");
-    ch = getchar();
-    while (ch != '\n' && ch != EOF) {
-        ch = getchar();
-    }
-}
-
+/* Banner Function */
 void Banner(void)
 {
     printf("========================================\n");
     printf("        PARKING LOT MANAGER\n");
     printf("   Cars in, cars out, fair charges\n");
-    printf("========================================\n\n");
+    printf("========================================\n");
 }
 
-void Menu(void)
+/* Menu Function */
+void Menu(double rate)
 {
-    printf("---------------- MENU ------------------\n");
-    printf("  1. Park a vehicle\n");
-    printf("  2. Release and charge\n");
-    printf("  3. Show free slots\n");
-    printf("  4. Search by plate\n");
-    printf("  5. Day's earnings\n");
-    printf("  6. Save & load\n");
-    printf("  0. Exit\n");
+    printf("\n---------------- MENU ------------------\n");
+    printf("1. Park a vehicle\n");
+    printf("2. Release and charge\n");
+    printf("3. Show free slots\n");
+    printf("4. Search by vehicle number\n");
+    printf("5. Day's earnings\n");
+    printf("0. Exit\n");
     printf("----------------------------------------\n");
-    printf("Rate per hour (part hour rounds up):\n");
-    printf("  Car %.2f | Bike %.2f | Bicycle %.2f taka\n",
-           rate_for_type(1), rate_for_type(2), rate_for_type(3));
-    printf("Flat overnight cap (stay passes midnight):\n");
-    printf("  Car %.2f | Bike %.2f | Bicycle %.2f taka\n\n",
-           cap_for_type(1), cap_for_type(2), cap_for_type(3));
+    printf("Standard car rate: %.2f taka/hour\n", rate);
 }
 
-/* Returns the number typed, or -1 if the entry is not a clean whole number. */
+/* Input Function */
 int read_number(void)
 {
     int value;
-    int status;
-    int ch;
-    int junk = 0;
-
-    status = scanf("%d", &value);
-    if (status == EOF) {
-        g_eof = 1;
-        return 0;
-    }
-    if (status != 1) {
-        junk = 1;
-    }
-    ch = getchar();
-    while (ch != '\n' && ch != EOF) {
-        if (ch != ' ' && ch != '\t') {
-            junk = 1;
-        }
-        ch = getchar();
-    }
-    if (junk) {
-        value = -1;
-    }
+    scanf("%d", &value);
     return value;
 }
 
-/* Asks again until the entry is from low to high; returns low if input ends. */
-int read_in_range(int low, int high)
-{
-    int value;
-    int ok = 0;
-
-    do {
-        value = read_number();
-        if (g_eof) {
-            return low;
-        }
-        if (value >= low && value <= high) {
-            ok = 1;
-        } else {
-            printf("  Invalid - enter a whole number from %d to %d: ", low, high);
-        }
-    } while (!ok);
-
-    return value;
-}
-
-double rate_for_type(int type)
-{
-    double rate;
-
-    if (type == 1) {
-        rate = CAR_RATE;
-    } else if (type == 2) {
-        rate = BIKE_RATE;
-    } else if (type == 3) {
-        rate = BICYCLE_RATE;
-    } else {
-        rate = 0.0;
-    }
-    return rate;
-}
-
-double cap_for_type(int type)
-{
-    double cap;
-
-    if (type == 1) {
-        cap = CAR_CAP;
-    } else if (type == 2) {
-        cap = BIKE_CAP;
-    } else if (type == 3) {
-        cap = BICYCLE_CAP;
-    } else {
-        cap = 0.0;
-    }
-    return cap;
-}
-
-/* A stay is overnight when the vehicle leaves at or after midnight. */
-int is_overnight(int minuteout)
-{
-    if (minuteout >= MIDNIGHT) {
-        return 1;
-    }
-    return 0;
-}
-
-/* Rounds up with integers only: 60 min -> 1 hour, 61 min -> 2 hours. */
+/* Calculate Hours */
 int calc_hours(int minutes)
 {
     return (minutes + 59) / 60;
 }
 
-double calc_charge(int hours, double rate_per_hour)
+/* Vehicle Rate Function */
+double get_rate(int type)
 {
-    return hours * rate_per_hour;
+    if(type == 1)
+        return 30.0;
+
+    else if(type == 2)
+        return 20.0;
+
+    else
+        return 10.0;
 }
 
-double apply_cap(double charge, double cap, int overnight)
+/* Calculate Charge */
+double calc_charge(int hours, double rate)
 {
-    if (overnight && charge > cap) {
-        return cap;
-    }
-    return charge;
+    return hours * rate;
 }
 
-void print_type_name(int type)
-{
-    switch (type) {
-        case 1:  printf("Car");     break;
-        case 2:  printf("Bike");    break;
-        case 3:  printf("Bicycle"); break;
-        default: printf("Unknown"); break;
-    }
-}
-
-void show_receipt(int minutes, int hours, double rate, double charge, int capped)
+/* Receipt Function */
+void show_receipt(int slot, int number, int type,
+                  int minutein, int minuteout,
+                  int minutes, int hours, double charge)
 {
     printf("\n--------------- RECEIPT ----------------\n");
-    printf("  Slot no.       : %d\n", g_slot);
-    printf("  Vehicle number : %d\n", g_number);
-    printf("  Vehicle type   : ");
-    print_type_name(g_type);
-    printf("\n");
-    printf("  Minute in      : %d\n", g_minutein);
-    printf("  Minute out     : %d\n", g_minuteout);
-    printf("  Time parked    : %d min\n", minutes);
-    printf("  Billed hours   : %d at %.2f taka\n", hours, rate);
-    if (capped) {
-        printf("  Overnight cap applied\n");
-    }
-    printf("  Charge         : %.2f taka\n", charge);
+    printf("Slot no.       : %d\n", slot);
+    printf("Vehicle number : %d\n", number);
+    printf("Vehicle type   : %d\n", type);
+    printf("Minute in      : %d\n", minutein);
+    printf("Minute out     : %d\n", minuteout);
+    printf("Time parked    : %d min\n", minutes);
+    printf("Billed hours   : %d\n", hours);
+    printf("Charge         : %.2f taka\n", charge);
     printf("----------------------------------------\n");
-}
-
-void park_vehicle(void)
-{
-    printf("========================================\n");
-    printf("            PARK A VEHICLE\n");
-    printf("========================================\n");
-
-    if (g_occupied) {
-        printf("Slot %d is already in use by vehicle %d.\n", g_slot, g_number);
-        printf("Version 4 can hold one vehicle at a time - release it first.\n");
-        return;
-    }
-
-    printf("Slot number (1-%d)          e.g. 7   : ", TOTAL_SLOTS);
-    g_slot = read_in_range(1, TOTAL_SLOTS);
-
-    printf("Vehicle number (1-%d)     e.g. 120 : ", MAX_PLATE);
-    g_number = read_in_range(1, MAX_PLATE);
-
-    printf("-------------- Vehicle type -----------------\n");
-    printf("  1. Car\n");
-    printf("  2. Bike\n");
-    printf("  3. Bicycle\n");
-    printf("Vehicle type (1-3)         e.g. 2   : ");
-    g_type = read_in_range(1, 3);
-
-    printf("Minute in (0-%d)         e.g. 200 : ", MAX_MINUTE_IN);
-    g_minutein = read_in_range(0, MAX_MINUTE_IN);
-
-    if (g_eof) {
-        return;
-    }
-
-    g_occupied = 1;
-    g_parked_count++;
-    printf("\nParked: vehicle %d (", g_number);
-    print_type_name(g_type);
-    printf(") in slot %d at minute %d.\n", g_slot, g_minutein);
-}
-
-void release_vehicle(void)
-{
-    int minutes;
-    int hours;
-    int capped;
-    double rate;
-    double raw;
-
-    printf("========================================\n");
-    printf("        RELEASE AND CHARGE\n");
-    printf("========================================\n");
-
-    if (!g_occupied) {
-        printf("No vehicle is parked - there is nothing to release.\n");
-        return;
-    }
-
-    printf("Releasing vehicle %d from slot %d (came in at minute %d).\n",
-           g_number, g_slot, g_minutein);
-    printf("Minute out (%d-%d; 1440 = midnight) : ", g_minutein + 1, MAX_MINUTE_OUT);
-    g_minuteout = read_in_range(g_minutein + 1, MAX_MINUTE_OUT);
-    if (g_eof) {
-        return;
-    }
-
-    minutes = g_minuteout - g_minutein;
-    hours = calc_hours(minutes);
-    rate = rate_for_type(g_type);
-    raw = calc_charge(hours, rate);
-    g_charge = apply_cap(raw, cap_for_type(g_type), is_overnight(g_minuteout));
-    capped = (g_charge < raw);
-
-    show_receipt(minutes, hours, rate, g_charge, capped);
-
-    g_earnings += g_charge;
-    g_released_count++;
-    g_occupied = 0;
-
-    wait_for_enter();
-}
-
-void show_free_slots(void)
-{
-    int s;
-
-    printf("========================================\n");
-    printf("            FREE SLOTS\n");
-    printf("========================================\n");
-    printf("[nn] = free, [XX] = taken\n\n");
-
-    for (s = 1; s <= TOTAL_SLOTS; s++) {
-        if (g_occupied && s == g_slot) {
-            printf("[XX] ");
-        } else {
-            printf("[%2d] ", s);
-        }
-        if (s % 5 == 0) {
-            printf("\n");
-        }
-    }
-    printf("\nFree slots: %d of %d\n", TOTAL_SLOTS - g_occupied, TOTAL_SLOTS);
-}
-
-void search_by_plate(void)
-{
-    int key;
-
-    printf("========================================\n");
-    printf("          SEARCH BY PLATE\n");
-    printf("========================================\n");
-    printf("Vehicle number (1-%d) : ", MAX_PLATE);
-    key = read_in_range(1, MAX_PLATE);
-    if (g_eof) {
-        return;
-    }
-
-    if (g_occupied && key == g_number) {
-        printf("\nFound: vehicle %d is in slot %d (", g_number, g_slot);
-        print_type_name(g_type);
-        printf("), came in at minute %d.\n", g_minutein);
-    } else {
-        printf("\nVehicle %d is not in the lot.\n", key);
-    }
-}
-
-void show_earnings(void)
-{
-    printf("========================================\n");
-    printf("            DAY'S EARNINGS\n");
-    printf("========================================\n");
-    printf("  Vehicles parked   : %d\n", g_parked_count);
-    printf("  Vehicles released : %d\n", g_released_count);
-    printf("  Still in the lot  : %d\n", g_occupied);
-    printf("  Total earnings    : %.2f taka\n", g_earnings);
-    if (g_released_count > 0) {
-        printf("  Average per exit  : %.2f taka\n", g_earnings / g_released_count);
-    }
-}
-
-void save_and_load(void)
-{
-    printf("========================================\n");
-    printf("            SAVE & LOAD\n");
-    printf("========================================\n");
-    printf("Saving needs text files, which arrive in Version 5.\n");
-    printf("For now the day's figures last only until you choose Exit.\n");
 }
