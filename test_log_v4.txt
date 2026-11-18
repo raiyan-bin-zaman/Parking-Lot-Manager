@@ -1,0 +1,57 @@
+PARKING LOT MANAGER - VERSION 4 - TEST LOG
+Built and run with gcc -Wall -Wextra -std=c89 -pedantic : 0 warnings.
+
+Conventions the tests rely on
+  Minute = minutes from midnight of the arrival day (1440 = midnight).
+  Overnight = minute out >= 1440. Rates/hour: Car 30, Bike 15, Bicycle 5.
+  Flat overnight cap: Car 200, Bike 100, Bicycle 30.
+  Billed hours = (minutes + 59) / 60.
+
+A. FIVE ATTEMPTS TO BREAK THE VALIDATION
+ #  Where           Input typed (in order)        What the program did
+ 1  Main menu       -5, 9, abc, 3.5, "2 x"        Each one answered "That is not on the menu -
+                                                  choose a number from 0 to 6." and the menu
+                                                  came back. 3.5 and "2 x" are NOT quietly
+                                                  read as 3 and 2.
+ 2  Slot number     0, 11, -3, x, then 7          Four "Invalid - enter a whole number from
+                                                  1 to 10" messages, then accepted 7.
+ 3  Vehicle type    4, 0, then 2                  Two "Invalid ... 1 to 3" messages, then 2.
+ 4  Minute in       1440, -1, then 200            Both rejected ("0 to 1439"), then 200.
+ 5  Minute out      (in = 200) 200, 150, 2880,    200 (same as in) and 150 (before in) rejected
+                    then 260                      as "201 to 2879"; 2880 (beyond next day)
+                                                  rejected; 260 accepted -> 60 min, bike,
+                                                  charge 15.00.
+
+B. OTHER CASES
+ 6  Plate typed as 12.7, then 120      12.7 rejected (not a whole number), 120 accepted.
+ 7  Option 2 with no vehicle parked    "No vehicle is parked - there is nothing to release."
+ 8  Option 1 while a vehicle is in     Refused: "Slot 7 is already in use by vehicle 120."
+                                       (V4 holds one vehicle - arrays arrive in V5.)
+ 9  Option 3 with vehicle in slot 7    Map shows [XX] at slot 7, "Free slots: 9 of 10".
+10  Option 4: 120, then 999            "Found: vehicle 120 is in slot 7 (Bike) ..." /
+                                       "Vehicle 999 is not in the lot."
+11  Option 6                           Says saving needs files (Version 5); nothing breaks.
+12  Exit with a vehicle still parked   Totals printed, plus a note that vehicle 77 was not charged.
+13  Keyboard input ends suddenly       Program exits cleanly with "Goodbye" - no infinite loop.
+14  Release a vehicle (receipt shown)  "Press Enter to continue..." appears under the receipt;
+                                       the menu returns only after Enter is pressed.
+
+C. BILLING (car, in at minute 0) - includes the boundary trap
+ Minutes parked   Billed hours   Charge     Expected (spec)
+      45              1           30.00        30   OK
+      60              1           30.00        exactly 60 min is ONE hour (the trap)   OK
+      61              2           60.00        60   OK
+      95              2           60.00        60   OK
+     120              2           60.00        boundary again   OK
+     121              3           90.00        OK
+     180              3           90.00        90   OK
+ Bike 61 min -> 2 h x 15 = 30.00 OK        Bicycle 61 min -> 2 h x 5 = 10.00 OK
+
+D. OVERNIGHT CAP
+ Car in 1080, out 1500 (420 min): 7 h x 30 = 210 -> capped to 200.00, "Overnight cap applied" OK
+ Car in 1400, out 1500 (100 min): 2 h x 30 = 60  -> below the cap, not capped OK
+ Bike in 0, out 2879: 48 h x 15 = 720 -> capped to 100.00 OK
+
+E. TOTALS
+ Car 61 min (60.00) + bike 45 min (15.00) released -> Day's earnings: parked 2, released 2,
+ still in lot 0, total 75.00 taka, average 37.50 taka. OK
